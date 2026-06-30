@@ -1,0 +1,103 @@
+services:
+  # ─── MESSAGE BROKER ────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: mini_uber_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - uber-network
+
+  # ─── DATABASES ─────────────────────────────────────────────
+  passenger_db:
+    image: mongo:latest
+    container_name: mini_uber_passenger_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - passenger_db_data:/data/db
+    networks:
+      - uber-network
+
+  driver_db:
+    image: mongo:latest
+    container_name: mini_uber_driver_db
+    ports:
+      - "27018:27017"
+    volumes:
+      - driver_db_data:/data/db
+    networks:
+      - uber-network
+
+  # ─── MICROSERVICES ──────────────────────────────────────────
+  passenger-service:
+    build: ../services/passenger-service
+    container_name: mini_uber_passenger_service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MONGO_URI=mongodb://passenger_db:27017/passenger_service_db
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - passenger_db
+      - rabbitmq
+    networks:
+      - uber-network
+
+  driver-service:
+    build: ../services/driver-service
+    container_name: mini_uber_driver_service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGO_URI=mongodb://driver_db:27017/driver_service_db
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - driver_db
+      - rabbitmq
+    networks:
+      - uber-network
+
+  # Add this right under your driver-service block in docker-compose.yml
+  billing-service:
+    build: ../services/billing-service
+    container_name: mini_uber_billing_service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - uber-network
+
+  # ─── API GATEWAY ───────────────────────────────────────────
+  api-gateway:
+    build: ../services/api-gateway
+    container_name: mini_uber_api_gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - PASSENGER_SERVICE_URL=http://passenger-service:3001
+      - DRIVER_SERVICE_URL=http://driver-service:3002
+    depends_on:
+      - passenger-service
+      - driver-service
+    networks:
+      - uber-network
+
+networks:
+  uber-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  passenger_db_data:
+  driver_db_data:

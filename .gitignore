@@ -1,0 +1,15 @@
+# Dependency folders
+node_modules/
+dist/
+.npm/
+
+# Environment configurations and secrets
+.env
+.env.local
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Docker data volumes (just in case)
+.docker/
