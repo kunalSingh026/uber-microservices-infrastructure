@@ -66,4 +66,20 @@ async function publishEvent(routingKey, message) {
     console.log(`[Driver Service] Event Published: "${routingKey}"`);
 }
 
-module.exports = { listenForEvents, publishEvent };
+async function publishToNotificationFanout(message) {
+    try {
+        if (!publishChannel) return;
+        const NOTIFICATION_EXCHANGE = 'uber_notifications';
+
+        await publishChannel.assertExchange(NOTIFICATION_EXCHANGE, 'fanout', { durable: true });
+
+        const payload = Buffer.from(JSON.stringify(message));
+
+        publishChannel.publish(NOTIFICATION_EXCHANGE, '', payload);
+        console.log(`[Driver Service] Broadcasted update to Notification Fanout Bus.`);
+    } catch (err) {
+        console.error('Fanout publication failure:', err.message);
+    }
+}
+
+module.exports = { listenForEvents, publishEvent, publishToNotificationFanout };

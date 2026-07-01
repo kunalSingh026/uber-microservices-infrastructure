@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
-const { listenForEvents, publishEvent } = require('./queue');
+const { listenForEvents, publishEvent, publishToNotificationFanout } = require('./queue');
 const Driver = require('./models/Driver');
 
 const app = express();
@@ -69,6 +69,7 @@ async function handleRideRequest(rideEvent) {
         };
 
         await publishEvent('ride.matched', matchResult);
+        await publishToNotificationFanout(matchResult);
     } catch (error) {
         console.error('[Driver Service] Error during match database operation:', error.message);
     }
