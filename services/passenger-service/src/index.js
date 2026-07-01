@@ -46,7 +46,7 @@ async function handleSagaFailure(failureEvent) {
             console.log(`[Passenger DB Rolled Back] Request  ${requestId} status is now hard-marked as FAILED.`);
         }
     } catch (error) {
-        console.error('[Passenger Service] Error executing Saga rollback:', error.messsage);
+        console.error('[Passenger Service] Error executing Saga rollback:', error.message);
     }
 }
 

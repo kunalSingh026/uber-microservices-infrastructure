@@ -54,7 +54,7 @@ async function handleRideRequest(rideEvent) {
             };
 
             // Broadcast the failure to the ecosystem
-            await publishEvent('ride.failed', failedPayload);
+            await publishEvent('ride.failed', failurePayload);
             return;
         }
 

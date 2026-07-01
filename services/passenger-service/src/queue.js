@@ -6,15 +6,41 @@ const QUEUE_NAME = 'passenger_update_queue';
 
 
 
+async function connectWithRetry(url, label = 'RabbitMQ', maxRetries = 10, delayMs = 5000) {
+    let retries = 0;
+    while (true) {
+        try {
+            const connection = await amqp.connect(url);
+            console.log(`[${label}] Connected successfully.`);
+            return connection;
+        } catch (error) {
+            retries++;
+            console.error(`[${label}] Connection failed (Attempt ${retries}/${maxRetries}):`, error.message);
+            if (retries >= maxRetries) {
+                throw new Error(`[${label}] Max retries reached. Could not connect to RabbitMQ.`);
+            }
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+}
+
 async function connectQueue() {
     try {
-        const connection = await amqp.connect(process.env.RABBITMQ_URL);
+        const connection = await connectWithRetry(process.env.RABBITMQ_URL, 'Passenger Service Publisher');
         channel = await connection.createChannel();
 
         await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
-        console.log('[Passenger Service] Connected to RabbitMQ successfully.');
+        
+        connection.on('close', () => {
+            console.error('[Passenger Service Publisher] Connection closed. Reconnecting in 5s...');
+            channel = null;
+            setTimeout(connectQueue, 5000);
+        });
+        connection.on('error', (err) => {
+            console.error('[Passenger Service Publisher] Connection error:', err.message);
+        });
     } catch (error) {
-        console.error('[Passenger Service] RabbitMQ connection failed:', error.message);
+        console.error('[Passenger Service Publisher] Failed to initialize:', error.message);
     }
 }
 
@@ -30,7 +56,7 @@ async function publishEvent(routingKey, message) {
 
 async function listenForMatches(onMatchReceived) {
     try {
-        const connection = await amqp.connect(process.env.RABBITMQ_URL);
+        const connection = await connectWithRetry(process.env.RABBITMQ_URL, 'Passenger Service Matches Listener');
         const channel = await connection.createChannel();
 
         await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
@@ -44,14 +70,19 @@ async function listenForMatches(onMatchReceived) {
                 channel.ack(msg);
             }
         });
+
+        connection.on('close', () => {
+            console.error('[Passenger Service Matches Listener] Connection closed. Reconnecting in 5s...');
+            setTimeout(() => listenForMatches(onMatchReceived), 5000);
+        });
     } catch (error) {
-        console.log('[Passenger Service] Failed to listen for matches:', error.message);
+        console.error('[Passenger Service Matches Listener] Failed to initialize:', error.message);
     }
 }
 
 async function listenForFailures(onFailureReceived) {
     try {
-        const connection = await amqp.connect(process.env.RABBITMQ_URL);
+        const connection = await connectWithRetry(process.env.RABBITMQ_URL, 'Passenger Service Failures Listener');
         const channel = await connection.createChannel();
         const FAILURE_QUEUE = 'passenger_failure_queue';
 
@@ -67,8 +98,13 @@ async function listenForFailures(onFailureReceived) {
                 channel.ack(msg);
             }
         });
+
+        connection.on('close', () => {
+            console.error('[Passenger Service Failures Listener] Connection closed. Reconnecting in 5s...');
+            setTimeout(() => listenForFailures(onFailureReceived), 5000);
+        });
     } catch (error) {
-        console.error('[Passenger Service] Failed to listen for failures:', error.message);
+        console.error('[Passenger Service Failures Listener] Failed to initialize:', error.message);
     }
 }
 module.exports = { connectQueue, publishEvent, listenForMatches, listenForFailures };
