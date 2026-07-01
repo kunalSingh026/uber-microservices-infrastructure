@@ -50,9 +50,8 @@ services:
 
   driver-service:
     build: ../services/driver-service
-    container_name: mini_uber_driver_service
-    ports:
-      - "3002:3002"
+    # ports:
+    #   - "3002:3002"
     environment:
       - PORT=3002
       - MONGO_URI=mongodb://driver_db:27017/driver_service_db
