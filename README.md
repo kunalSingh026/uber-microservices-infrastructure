@@ -10,7 +10,7 @@ This project is built around five decoupled microservices and three infrastructu
 
 ```mermaid
 graph TD
-    User([Passenger / Client]) -->|API Requests| Gateway[API Gateway :3000]
+    User(["Passenger / Client"]) -->|API Requests| Gateway[API Gateway :3000]
     
     Gateway -->|/api/v1/passenger/*| PS[Passenger Service :3001]
     Gateway -->|/api/v1/driver/*| DS[Driver Service :3002]
@@ -18,7 +18,7 @@ graph TD
     PS <-->|Read/Write| PDB[(Passenger DB - MongoDB :27017)]
     DS <-->|Read/Write| DDB[(Driver DB - MongoDB :27018)]
     
-    subgraph Event Broker (RabbitMQ)
+    subgraph "Event Broker (RabbitMQ)"
         Exchange[uber_events Topic Exchange]
         NotifExchange[uber_notifications Fanout Exchange]
     end
@@ -30,7 +30,7 @@ graph TD
     Exchange -->|Route to passenger_update_queue| PS
     
     DS -->|Publish ride.failed| Exchange
-    Exchange -->|Route to passenger_failure_queue (Saga Rollback)| PS
+    Exchange -->|"Route to passenger_failure_queue (Saga Rollback)"| PS
     
     DS -->|Publish ride.completed| Exchange
     Exchange -->|Route to billing_service_queue| BS[Billing Service :3003]
