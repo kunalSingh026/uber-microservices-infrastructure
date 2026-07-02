@@ -11,6 +11,15 @@ services:
     networks:
       - uber-network
 
+  # ─── RAM CACHE MEMORY STORE ─────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: mini_uber_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - uber-network
+
   # ─── DATABASES ─────────────────────────────────────────────
   passenger_db:
     image: mongo:latest
@@ -50,8 +59,9 @@ services:
 
   driver-service:
     build: ../services/driver-service
-    ports:
-      - "3002:3002"
+    # 💥 Scalable Node: ports and container_name are decoupled to prevent collisions
+    # ports:
+    #   - "3002:3002"
     environment:
       - PORT=3002
       - MONGO_URI=mongodb://driver_db:27017/driver_service_db
@@ -62,7 +72,6 @@ services:
     networks:
       - uber-network
 
-  # Add this right under your driver-service block in docker-compose.yml
   billing-service:
     build: ../services/billing-service
     container_name: mini_uber_billing_service
@@ -86,6 +95,20 @@ services:
       - RABBITMQ_URL=amqp://rabbitmq:5672
     depends_on:
       - rabbitmq
+    networks:
+      - uber-network
+
+  # ─── TELEMETRY INGESTION MICROSERVICE ────────────────────────
+  tracking-service:
+    build: ../services/tracking-service
+    container_name: mini_uber_tracking_service
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
     networks:
       - uber-network
 
