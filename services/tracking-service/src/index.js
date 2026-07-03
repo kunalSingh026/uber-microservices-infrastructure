@@ -7,7 +7,12 @@ const app = express();
 const server = http.createServer(app);
 
 // Initialize Socket.io to allow live dual streams
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
 app.use(express.json());
 app.post('/api/v1/tracking/update', async (req, res) => {
@@ -15,12 +20,15 @@ app.post('/api/v1/tracking/update', async (req, res) => {
     if (!driverId || !longitude || !latitude) {
         return res.status(400).json({ error: "Missing tracking metrics." });
     }
+    console.log(`📥 [Telemetry Ingestion] Handling update request for driver: ${driverId} (Lon: ${longitude}, Lat: ${latitude})`);
+
     await updateDriverLocation(driverId, longitude, latitude);
+    console.log(`💾 [Redis Cache] Saved tracking details for driver: ${driverId} down to mini_uber_redis`);
 
     // Broadcast the movement live to any passenger listening via WebSockets
     io.emit(`location.${driverId}`, { driverId, longitude, latitude, updated: new Date() });
 
-    res.status(200).json({ message: "Telemetry cached successfully." });
+    res.status(200).json({ status: "success", message: "Telemetry cached successfully." });
 });
 
 // 2. WebSocket Pipeline connection handler

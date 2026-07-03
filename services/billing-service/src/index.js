@@ -38,6 +38,12 @@ app.get('/health', (req, res) => {
     res.status(200).json({ service: 'Billing Service', status: 'Healthy' });
 });
 
+// GET all invoices
+app.get('/invoices', (req, res) => {
+    // Sort or return list of invoices
+    res.status(200).json(invoices);
+});
+
 const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => {
     console.log(`Billing Service running smoothly on port ${PORT}`);

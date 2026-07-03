@@ -122,9 +122,11 @@ services:
       - PORT=3000
       - PASSENGER_SERVICE_URL=http://passenger-service:3001
       - DRIVER_SERVICE_URL=http://driver-service:3002
+      - BILLING_SERVICE_URL=http://billing-service:3003
     depends_on:
       - passenger-service
       - driver-service
+      - billing-service
     networks:
       - uber-network
 

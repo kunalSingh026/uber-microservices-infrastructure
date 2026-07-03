@@ -21,11 +21,18 @@ async function seedDrivers() {
     if (count === 0) {
         const seedData = [
             { id: "d1", name: "John Doe", status: "AVAILABLE", location: "120 Main St" },
-            { id: "d2", name: "Jane Smith", status: "BUSY", location: "999 Broadway" },
-            { id: "d3", name: "Bob Johnson", status: "AVAILABLE", location: "125 MAIN St" }
+            { id: "d2", name: "Jane Smith", status: "AVAILABLE", location: "999 Broadway" },
+            { id: "d3", name: "Bob Johnson", status: "AVAILABLE", location: "125 MAIN St" },
+            { id: "d4", name: "Alice Brown", status: "AVAILABLE", location: "200 Park Ave" },
+            { id: "d5", name: "Charlie Green", status: "AVAILABLE", location: "350 Elm St" },
+            { id: "d6", name: "Diana Prince", status: "AVAILABLE", location: "400 Oak St" },
+            { id: "d7", name: "Evan Wright", status: "AVAILABLE", location: "150 Pine St" },
+            { id: "d8", name: "Fiona Gallagher", status: "AVAILABLE", location: "550 Cedar Rd" },
+            { id: "d9", name: "George Costanza", status: "AVAILABLE", location: "600 Maple Ave" },
+            { id: "d10", name: "Hal Jordan", status: "AVAILABLE", location: "700 Oa Blvd" }
         ];
         await Driver.insertMany(seedData);
-        console.log('[Driver Service] Database seeded with initial drivers.');
+        console.log('[Driver Service] Database seeded with 10 initial drivers.');
     }
 }
 
@@ -119,6 +126,42 @@ app.post('/rides/complete', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
+        res.status(500).json({ error: "Internal Database Error" });
+    }
+});
+
+// GET all drivers
+app.get('/drivers', async (req, res) => {
+    try {
+        const drivers = await Driver.find().sort({ id: 1 });
+        res.status(200).json(drivers);
+    } catch (error) {
+        console.error('[Driver Service] Error fetching drivers:', error.message);
+        res.status(500).json({ error: "Internal Database Error" });
+    }
+});
+
+// POST register new driver
+app.post('/drivers', async (req, res) => {
+    const { id, name, location } = req.body;
+    if (!id || !name || !location) {
+        return res.status(400).json({ error: "Missing required details: id, name, and location" });
+    }
+    try {
+        const newDriver = new Driver({
+            id,
+            name,
+            location,
+            status: "AVAILABLE"
+        });
+        await newDriver.save();
+        console.log(`[Driver Service] Registered driver dynamically: ${name} (${id})`);
+        res.status(201).json(newDriver);
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({ error: "Driver ID already registered" });
+        }
+        console.error('[Driver Service] Error registering driver:', error.message);
         res.status(500).json({ error: "Internal Database Error" });
     }
 });

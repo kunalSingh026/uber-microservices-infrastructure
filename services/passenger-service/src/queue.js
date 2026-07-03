@@ -107,4 +107,32 @@ async function listenForFailures(onFailureReceived) {
         console.error('[Passenger Service Failures Listener] Failed to initialize:', error.message);
     }
 }
-module.exports = { connectQueue, publishEvent, listenForMatches, listenForFailures };
+async function listenForCompletions(onCompletionReceived) {
+    try {
+        const connection = await connectWithRetry(process.env.RABBITMQ_URL, 'Passenger Service Completions Listener');
+        const channel = await connection.createChannel();
+        const COMPLETION_QUEUE = 'passenger_completion_queue';
+
+        await channel.assertExchange(EXCHANGE_NAME, 'topic', { durable: true });
+        await channel.assertQueue(COMPLETION_QUEUE, { durable: true });
+
+        await channel.bindQueue(COMPLETION_QUEUE, EXCHANGE_NAME, 'ride.completed');
+
+        channel.consume(COMPLETION_QUEUE, (msg) => {
+            if (msg !== null) {
+                const eventData = JSON.parse(msg.content.toString());
+                onCompletionReceived(eventData);
+                channel.ack(msg);
+            }
+        });
+
+        connection.on('close', () => {
+            console.error('[Passenger Service Completions Listener] Connection closed. Reconnecting in 5s...');
+            setTimeout(() => listenForCompletions(onCompletionReceived), 5000);
+        });
+    } catch (error) {
+        console.error('[Passenger Service Completions Listener] Failed to initialize:', error.message);
+    }
+}
+
+module.exports = { connectQueue, publishEvent, listenForMatches, listenForFailures, listenForCompletions };
