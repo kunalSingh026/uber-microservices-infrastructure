@@ -1,25 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 :root {
-  --bg-color: #051424;
-  --surface-color: #122131;
-  --surface-high: #1c2b3c;
-  --surface-highest: #273647;
-  --surface-lowest: #010f1f;
-  --border-color: rgba(51, 65, 85, 0.6);
-  --border-active: #7bd0ff;
-  --text-main: #d4e4fa;
-  --text-muted: #c6c6cd;
-  --primary-accent: #bec6e0;
-  --secondary-accent: #7bd0ff;
+  --bg-color: #f8fafc;
+  --surface-color: #ffffff;
+  --surface-high: #f1f5f9;
+  --surface-highest: #e2e8f0;
+  --surface-lowest: #ffffff;
+  --border-color: #e2e8f0;
+  --border-active: #000000;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --primary-accent: #0f172a;
+  --secondary-accent: #000000;
   
-  /* Status Colors */
-  --status-ready: #10b981;
-  --status-ready-bg: rgba(16, 185, 129, 0.1);
-  --status-busy: #f59e0b;
-  --status-busy-bg: rgba(245, 158, 11, 0.1);
-  --status-error: #ef4444;
-  --status-error-bg: rgba(239, 68, 68, 0.1);
+  /* Status Colors - Adjusted for Light Theme Readability */
+  --status-ready: #059669;
+  --status-ready-bg: rgba(5, 150, 105, 0.1);
+  --status-busy: #d97706;
+  --status-busy-bg: rgba(217, 119, 6, 0.1);
+  --status-error: #dc2626;
+  --status-error-bg: rgba(220, 38, 38, 0.1);
 }
 
 * {
@@ -204,9 +204,9 @@ body {
 }
 
 .nav-item.active {
-  background-color: rgba(123, 208, 255, 0.15);
-  color: var(--secondary-accent);
-  border: 1px solid rgba(123, 208, 255, 0.25);
+  background-color: var(--surface-high);
+  color: var(--primary-accent);
+  border: 1px solid var(--border-active);
 }
 
 /* Sidebar Footer Telemetry */

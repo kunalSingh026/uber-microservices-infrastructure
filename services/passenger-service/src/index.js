@@ -1,8 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const axios = require('axios');
 const { connectQueue, publishEvent, listenForMatches, listenForFailures, listenForCompletions } = require('./queue');
 const RideRequest = require('./models/RideRequest'); // Import MongoDB Model
+const User = require('./models/User'); // Import User Model
 
 const app = express();
 app.use(express.json());
@@ -154,6 +156,65 @@ app.get('/api/v1/passenger/rides/:requestId', async (req, res) => {
         res.status(200).json(ride);
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Google Authentication Sign In / Sign Up Endpoint
+app.post('/auth/google', async (req, res) => {
+    const { token } = req.body;
+    if (!token) {
+        return res.status(400).json({ error: 'Google authentication token is required.' });
+    }
+
+    try {
+        // Query Google OAuth v3 tokeninfo endpoint to verify token integrity
+        const response = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+        const payload = response.data;
+
+        // Verify audience (Client ID)
+        const CLIENT_ID = '406723043892-65aqhp2t3ma2gbls5r613s4niki1d6om.apps.googleusercontent.com';
+        if (payload.aud !== CLIENT_ID) {
+            console.error('[Passenger Service] Google Auth Failure: Client ID mismatch. Expected:', CLIENT_ID, 'Got:', payload.aud);
+            return res.status(400).json({ error: 'Client ID mismatch. Verification failed.' });
+        }
+
+        const { sub: googleId, email, name, picture } = payload;
+
+        // Find or create user
+        let user = await User.findOne({ googleId });
+        if (!user) {
+            // Check if there is an existing user with the same email
+            user = await User.findOne({ email });
+            if (user) {
+                user.googleId = googleId;
+                user.name = name;
+                user.picture = picture;
+                await user.save();
+                console.log(`[Passenger Service] Linked existing email ${email} to Google ID.`);
+            } else {
+                user = new User({
+                    googleId,
+                    email,
+                    name,
+                    picture,
+                    role: 'passenger' // Default role is passenger
+                });
+                await user.save();
+                console.log(`[Passenger Service] New user signed up via Google: ${email}`);
+            }
+        }
+
+        res.status(200).json({
+            googleId: user.googleId,
+            email: user.email,
+            name: user.name,
+            picture: user.picture,
+            role: user.role,
+            passengerId: user.email // Treat email as passenger ID in system bookings
+        });
+    } catch (error) {
+        console.error('[Passenger Service] Google token verification error:', error.message);
+        res.status(401).json({ error: 'Invalid Google token or verification failure.' });
     }
 });
 
