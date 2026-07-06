@@ -6,6 +6,10 @@ dist/
 # Environment configurations and secrets
 .env
 .env.local
+.env.production
+secrets/
+backups/
+data/
 
 # Operating system files
 .DS_Store

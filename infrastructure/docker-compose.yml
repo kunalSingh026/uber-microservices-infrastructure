@@ -8,8 +8,12 @@ services:
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ../backups/rabbitmq:/backup
     networks:
-      - uber-network
+      - rabbitmq-net
+    secrets:
+      - google_client_secret
+      - jwt_secret
 
   # ─── RAM CACHE MEMORY STORE ─────────────────────────────────
   redis:
@@ -18,7 +22,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - uber-network
+      - redis-net
 
   # ─── DATABASES ─────────────────────────────────────────────
   passenger_db:
@@ -28,8 +32,9 @@ services:
       - "27017:27017"
     volumes:
       - passenger_db_data:/data/db
+      - ../backups/passenger_db:/backup
     networks:
-      - uber-network
+      - passenger-db-net
 
   driver_db:
     image: mongo:latest
@@ -38,103 +43,175 @@ services:
       - "27018:27017"
     volumes:
       - driver_db_data:/data/db
+      - ../backups/driver_db:/backup
     networks:
-      - uber-network
+      - driver-db-net
 
   # ─── MICROSERVICES ──────────────────────────────────────────
   passenger-service:
     build: ../services/passenger-service
     container_name: mini_uber_passenger_service
     ports:
-      - "3001:3001"
+      - "${PASSENGER_SERVICE_PORT}:3001"
+    env_file:
+      - ../.env.production
     environment:
       - PORT=3001
-      - MONGO_URI=mongodb://passenger_db:27017/passenger_service_db
-      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - MONGO_URI=${PASSENGER_MONGO_URI}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     depends_on:
       - passenger_db
       - rabbitmq
     networks:
-      - uber-network
+      - gateway-net
+      - passenger-db-net
+      - rabbitmq-net
+    secrets:
+      - google_client_secret
+      - jwt_secret
 
   driver-service:
     build: ../services/driver-service
-    # 💥 Scalable Node: ports and container_name are decoupled to prevent collisions
+    container_name: mini_uber_driver_service
+    # Decoupled ports to prevent collisions or allow multiple replicas if container_name isn't fixed
     # ports:
-    #   - "3002:3002"
+    #   - "${DRIVER_SERVICE_PORT}:3002"
+    env_file:
+      - ../.env.production
     environment:
       - PORT=3002
-      - MONGO_URI=mongodb://driver_db:27017/driver_service_db
-      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - MONGO_URI=${DRIVER_MONGO_URI}
+      - RABBITMQ_URL=${RABBITMQ_URL}
     depends_on:
       - driver_db
       - rabbitmq
     networks:
-      - uber-network
+      - gateway-net
+      - driver-db-net
+      - rabbitmq-net
+    secrets:
+      - google_client_secret
+      - jwt_secret
 
   billing-service:
     build: ../services/billing-service
     container_name: mini_uber_billing_service
     ports:
-      - "3003:3003"
+      - "${BILLING_SERVICE_PORT}:3003"
+    env_file:
+      - ../.env.production
     environment:
       - PORT=3003
-      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_URL=${RABBITMQ_URL}
     depends_on:
       - rabbitmq
     networks:
-      - uber-network
+      - gateway-net
+      - rabbitmq-net
+    secrets:
+      - google_client_secret
+      - jwt_secret
 
   notification-service:
     build: ../services/notification-service
     container_name: mini_uber_notification_service
     ports:
-      - "3004:3004"
+      - "${NOTIFICATION_SERVICE_PORT}:3004"
+    env_file:
+      - ../.env.production
     environment:
       - PORT=3004
-      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - RABBITMQ_URL=${RABBITMQ_URL}
     depends_on:
       - rabbitmq
     networks:
-      - uber-network
+      - rabbitmq-net
+    secrets:
+      - google_client_secret
+      - jwt_secret
 
   # ─── TELEMETRY INGESTION MICROSERVICE ────────────────────────
   tracking-service:
     build: ../services/tracking-service
     container_name: mini_uber_tracking_service
     ports:
-      - "3005:3005"
+      - "${TRACKING_SERVICE_PORT}:3005"
+    env_file:
+      - ../.env.production
     environment:
       - PORT=3005
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=${REDIS_URL}
     depends_on:
       - redis
     networks:
-      - uber-network
+      - redis-net
+    secrets:
+      - google_client_secret
+      - jwt_secret
 
   # ─── API GATEWAY ───────────────────────────────────────────
   api-gateway:
     build: ../services/api-gateway
     container_name: mini_uber_api_gateway
     ports:
-      - "3000:3000"
+      - "${GATEWAY_PORT}:3000"
+    env_file:
+      - ../.env.production
     environment:
       - PORT=3000
-      - PASSENGER_SERVICE_URL=http://passenger-service:3001
-      - DRIVER_SERVICE_URL=http://driver-service:3002
-      - BILLING_SERVICE_URL=http://billing-service:3003
+      - PASSENGER_SERVICE_URL=${PASSENGER_SERVICE_URL}
+      - DRIVER_SERVICE_URL=${DRIVER_SERVICE_URL}
+      - BILLING_SERVICE_URL=${BILLING_SERVICE_URL}
     depends_on:
       - passenger-service
       - driver-service
       - billing-service
     networks:
-      - uber-network
+      - gateway-net
+    secrets:
+      - google_client_secret
+      - jwt_secret
 
 networks:
-  uber-network:
+  gateway-net:
     driver: bridge
+  passenger-db-net:
+    driver: bridge
+    internal: true
+  driver-db-net:
+    driver: bridge
+    internal: true
+  rabbitmq-net:
+    driver: bridge
+  redis-net:
+    driver: bridge
+
+secrets:
+  google_client_secret:
+    file: ../secrets/google_client_secret.txt
+  jwt_secret:
+    file: ../secrets/jwt_secret.txt
 
 volumes:
   rabbitmq_data:
+    name: rabbitmq_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../data/rabbitmq
   passenger_db_data:
+    name: passenger_db_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../data/passenger_db
   driver_db_data:
+    name: driver_db_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../data/driver_db
