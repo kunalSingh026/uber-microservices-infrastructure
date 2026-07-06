@@ -115,6 +115,7 @@ The container cluster has been hardened for production environments across three
 ### 1. Environment Decoupling & Configuration Injection
 - **Stripped Hardcoded Data**: All service ports, database connection URIs, message broker endpoints, and Google Client IDs are completely decoupled from `docker-compose.yml` and the microservices' source code.
 - **Centralized Config**: Consolidates all environment parameters inside a root-level `.env.production` file.
+- **Auto-loading Compose Environment**: Created a git-ignored [infrastructure/.env](file:///d:/mini-uber-microservice/infrastructure/.env) duplicating these production variables. Docker Compose reads it automatically, eliminating loopback `ECONNREFUSED` issues during default boots.
 - **Native Runtime Injection**: Uses Docker Compose's `env_file` directive to inject configurations natively into service containers at runtime.
 - **Preserved Local Debugging**: Retains local `.env` files in service subdirectories (`services/api-gateway/`, `services/passenger-service/`, `services/driver-service/`), allowing developers to debug locally outside of Docker without any changes.
 
@@ -164,13 +165,13 @@ To spin up all backend microservices, databases, Redis, and RabbitMQ:
    cd infrastructure
    ```
 2. Boot the containers:
-   - **For Production Hardened Mode** (Decoupled, secrets-mounted, and network-segmented):
-     ```bash
-     docker compose --env-file ../.env.production up --build -d
-     ```
-   - **For Standard Mode**:
+   - Running the cluster will automatically load the hardened configurations from the git-ignored `infrastructure/.env` file:
      ```bash
      docker compose up --build -d
+     ```
+   - Alternatively, you can explicitly load a specific configuration file (e.g. the root-level production config):
+     ```bash
+     docker compose --env-file ../.env.production up --build -d
      ```
 3. **Verification**:
    - **RabbitMQ Console**: [http://localhost:15672](http://localhost:15672) (User: `guest`, Pass: `guest`)
